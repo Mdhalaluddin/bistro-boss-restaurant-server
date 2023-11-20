@@ -42,6 +42,13 @@ async function run() {
         return res.status(401).send({message: 'forbidden access'});
       }
       const token = req.headers.authorization.split(' ')[1]; 
+      jwt.verify(token, process.env.JWT_TOKEN, (err, decoded)=>{
+        if(err){
+          return res.status(401).send({message: 'forbidden access'})
+        }
+        req.decoded = decoded;
+        next();
+      })
     } 
     // jwt
     app.post('/jwt', async(req, res)=>{
