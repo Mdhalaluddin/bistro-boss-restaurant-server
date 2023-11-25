@@ -62,6 +62,12 @@ async function run() {
       next();
     }
 
+    // users api
+    app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
+      const result = await userCollection.find().toArray()
+      res.send(result)
+    })
+
 
     app.get('/users/admin/:email', verifyToken, verifyAdmin, async (req, res) => {
       const email = req.params.email;
@@ -85,11 +91,7 @@ async function run() {
       res.send({ token })
     })
 
-    // users api
-    app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
-      const result = await userCollection.find().toArray()
-      res.send(result)
-    })
+
     // user date
     app.post('/users', async (req, res) => {
       const user = req.body;
@@ -181,13 +183,15 @@ async function run() {
       const payment = req.body;
       const paymentResult = await paymentCollection.insertOne(payment);
 
-      console.log('payment info',payment);
+      console.log('payment info', payment);
       // cart delete
-      const query = {_id:{
-        $in: payment.cartIds.map(id=> new ObjectId(id))
-      }} 
+      const query = {
+        _id: {
+          $in: payment.cartIds.map(id => new ObjectId(id))
+        }
+      }
       const deleteResult = await cartCollection.deleteMany(query);
-      res.send({paymentResult, deleteResult})
+      res.send({ paymentResult, deleteResult })
     })
 
     app.get('/reviews', async (req, res) => {
@@ -195,10 +199,10 @@ async function run() {
       res.send(result)
     })
     // payment all data
-    app.get('/payments/:email', verifyToken, async(req, res)=>{
-      const query = {email: req.params.email}
-      if(req.params.email !== req.decoded.email){
-        return res.status(403).send({message: 'forbidden access'})
+    app.get('/payments/:email', verifyToken, async (req, res) => {
+      const query = { email: req.params.email }
+      if (req.params.email !== req.decoded.email) {
+        return res.status(403).send({ message: 'forbidden access' })
       }
       const result = await paymentCollection.find(query).toArray();
       res.send(result)
@@ -222,6 +226,32 @@ async function run() {
       const query = { _id: new ObjectId(id) };
       const result = await cartCollection.deleteOne(query);
       res.send(result)
+    })
+
+    // admin analysis
+    app.get('/admin-stats', async (req, res) => {
+      const users = await userCollection.estimatedDocumentCount();
+      const menuItem = await menuCollection.estimatedDocumentCount();
+      const order = await paymentCollection.estimatedDocumentCount();
+
+      const result = await paymentCollection.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalRevenue: {
+              $sum: '$price'
+            }
+          }
+        }
+      ]).toArray()
+
+      const revenue = result.length > 0 ? result[0].totalRevenue : 0;
+      res.send({
+        users,
+        menuItem,
+        order,
+        revenue
+      })
     })
 
 
